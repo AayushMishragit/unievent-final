@@ -8,8 +8,8 @@ type Props = {
 };
 
 export default function UserLoginForm({ setMode }: Props) {
-  const [form, setForm]       = useState({ email: "", password: "" });
-  const [error, setError]     = useState("");
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -35,12 +35,11 @@ export default function UserLoginForm({ setMode }: Props) {
 
       localStorage.setItem("user", JSON.stringify({ token, user }));
       console.log("✅ User login successful:", user.email);
-      router.push("/dashboard/user");
-
+      router.push("/");
     } catch (err: unknown) {
       const msg =
-        (err as { response?: { data?: { msg?: string } } })?.response?.data?.msg ||
-        "Login failed. Try again.";
+        (err as { response?: { data?: { msg?: string } } })?.response?.data
+          ?.msg || "Login failed. Try again.";
       setError(msg);
     } finally {
       setLoading(false);
@@ -49,7 +48,6 @@ export default function UserLoginForm({ setMode }: Props) {
 
   return (
     <form onSubmit={handleSubmit}>
-
       {error && (
         <div className="p-3 mb-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
           {error}
@@ -81,7 +79,7 @@ export default function UserLoginForm({ setMode }: Props) {
       </button>
 
       <p className="text-center text-sm mt-4 text-gray-400">
-        Don&apos;t have an account?{" "} {/* ✅ fixed apostrophe */}
+        Don&apos;t have an account? {/* ✅ fixed apostrophe */}
         <span
           className="text-purple-400 cursor-pointer hover:underline"
           onClick={() => setMode("signup")}
