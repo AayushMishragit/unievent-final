@@ -66,7 +66,7 @@ export default function Navigation() {
                 alt="avatar"
                 width={40}
                 height={40}
-                src="/avatar.jpg"
+                src="/profile.jpg"
                 className="w-10 h-10 rounded-full mx-1"
               />
             </summary>
