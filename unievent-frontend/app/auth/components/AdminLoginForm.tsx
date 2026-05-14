@@ -35,7 +35,7 @@ export default function AdminLoginForm({ setMode }: Props) {
 
       localStorage.setItem("user", JSON.stringify({ token, user }));
       console.log("✅ Admin login successful:", user.email);
-      router.push("/admindashboard");
+      router.push("/");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { msg?: string } } })?.response?.data
