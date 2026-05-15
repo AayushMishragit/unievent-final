@@ -25,7 +25,7 @@ export default function LandingPage() {
 
     if (storeduser) {
       const parsed = JSON.parse(storeduser);
-      setUser(parsed);
+      setUser(parsed.user);
     }
   }, []);
   const isAuthenticated = !!user;
@@ -111,7 +111,7 @@ export default function LandingPage() {
                   className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-2xl p-8 hover:border-blue-500/50 transition-all group cursor-pointer"
                   onClick={() => {
                     if (isAdmin) {
-                      router.push("/admindashboard");
+                      router.push("/createevent");
                     } else {
                       router.push("/explorepage");
                     }

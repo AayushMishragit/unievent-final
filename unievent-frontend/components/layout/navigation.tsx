@@ -15,8 +15,8 @@ export default function Navigation() {
 
   const handlelogout = () => {
     localStorage.removeItem("user");
-    router.push("/");
-    window.location.reload();
+    window.dispatchEvent(new Event("storage"));
+    window.location.href = "/";
   };
 
   return (
