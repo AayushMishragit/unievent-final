@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { loginUser } from "../../Service/authService";
 import { useRouter } from "next/navigation";
-
+import { ToastContainer, toast } from "react-toastify";
 type Props = {
   setMode: (mode: "signup" | "login") => void; // ✅ fixed type
 };
@@ -34,13 +34,15 @@ export default function UserLoginForm({ setMode }: Props) {
       }
 
       localStorage.setItem("user", JSON.stringify({ token, user }));
-      console.log("✅ User login successful:", user.email);
-      router.push("/");
+      toast.success("User login successful:");
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { msg?: string } } })?.response?.data
           ?.msg || "Login failed. Try again.";
-      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

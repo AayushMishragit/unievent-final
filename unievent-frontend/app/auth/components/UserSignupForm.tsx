@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { signupUser } from "../../Service/authService";
 import { Mail, Lock, User } from "lucide-react";
+import { toast } from "react-toastify";
 
 type Props = {
   setMode: (mode: "signup" | "login") => void; // ✅ fixed type
@@ -9,9 +10,12 @@ type Props = {
 
 export default function UserSignupForm({ setMode }: Props) {
   const [form, setForm] = useState({
-    name: "", email: "", password: "", confirm: "",
+    name: "",
+    email: "",
+    password: "",
+    confirm: "",
   });
-  const [error, setError]     = useState("");
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,14 +43,13 @@ export default function UserSignupForm({ setMode }: Props) {
         role: "user",
       });
 
-      setSuccess("Account created! Redirecting to login...");
-      setTimeout(() => setMode("login"), 1500);
-
+      toast.success("Account created! Redirecting ...");
+      setTimeout(() => (window.location.href = "/"), 1500);
     } catch (err: unknown) {
       const msg =
-        (err as { response?: { data?: { msg?: string } } })?.response?.data?.msg ||
-        "Signup failed. Try again.";
-      setError(msg);
+        (err as { response?: { data?: { msg?: string } } })?.response?.data
+          ?.msg || "Signup failed. Try again.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -54,7 +57,6 @@ export default function UserSignupForm({ setMode }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-
       {error && (
         <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
           {error}
@@ -134,17 +136,26 @@ export default function UserSignupForm({ setMode }: Props) {
       <div className="text-center text-xs text-gray-400">OR CONTINUE WITH</div>
 
       <div className="flex gap-2">
-        <button type="button" className="flex-1 p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition">
+        <button
+          type="button"
+          className="flex-1 p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition"
+        >
           Google
         </button>
-        <button type="button" className="flex-1 p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition">
+        <button
+          type="button"
+          className="flex-1 p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition"
+        >
           GitHub
         </button>
       </div>
 
       <p className="text-center text-sm text-gray-400">
         Already have an account?{" "}
-        <span className="text-purple-400 cursor-pointer hover:underline" onClick={() => setMode("login")}>
+        <span
+          className="text-purple-400 cursor-pointer hover:underline"
+          onClick={() => setMode("login")}
+        >
           Log in
         </span>
       </p>

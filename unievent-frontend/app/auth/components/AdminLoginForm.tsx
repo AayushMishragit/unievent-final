@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { loginUser } from "../../Service/authService";
 import { useRouter } from "next/navigation";
-
+import { ToastContainer, toast } from "react-toastify";
 type Props = {
   setMode: (mode: "signup" | "login") => void; // ✅ fixed type
 };
@@ -30,18 +30,20 @@ export default function AdminLoginForm({ setMode }: Props) {
       const { token, user } = res.data;
 
       if (user.role !== "admin") {
-        return setError("Access denied. This login is for admins only.");
+        return toast.error("Access denied. This login is for admins only.");
       }
 
       localStorage.setItem("user", JSON.stringify({ token, user }));
       window.dispatchEvent(new Event("storage"));
-      console.log("✅ Admin login successful:", user.email);
-      router.push("/");
+      toast.success("Admin login successful");
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { msg?: string } } })?.response?.data
           ?.msg || "Login failed. Try again.";
-      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

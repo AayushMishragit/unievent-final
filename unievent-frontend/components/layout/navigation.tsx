@@ -16,7 +16,7 @@ export default function Navigation() {
   const handlelogout = () => {
     localStorage.removeItem("user");
     window.dispatchEvent(new Event("storage"));
-    window.location.href = "/";
+    window.location.href = "/auth?mode=login";
   };
 
   return (

@@ -40,10 +40,8 @@ export const signupAdmin = (data: {
 }) => API.post("/signup", data);
 
 // Login (both user and admin)
-export const loginUser = (data: {
-  email: string;
-  password: string;
-}) => API.post("/login", data);
+export const loginUser = (data: { email: string; password: string }) =>
+  API.post("/login", data);
 
 // Get current logged-in user
 export const getMe = () => API.get("/me");
@@ -52,3 +50,10 @@ export const getMe = () => API.get("/me");
 export const logout = () => {
   localStorage.removeItem("user");
 };
+
+export const forgetpassword = (data: {
+  email: string;
+  name: string;
+  password: string;
+  newpassword: string;
+}) => API.post("/forget-password", data);

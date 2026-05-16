@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { signupAdmin } from "../../Service/authService";
-
+import { useSearchParams } from "next/navigation";
+import { ToastContainer, toast, cssTransition } from "react-toastify";
 // type Props = {
 //   setMode: React.Dispatch<React.SetStateAction<"signup" | "login">>;
 // };
@@ -11,10 +12,18 @@ type Props = {
 
 export default function AdminSignupForm({ setMode }: Props) {
   const [form, setForm] = useState({
-    orgName: "", description: "", website: "", teamSize: "",
-    adminName: "", email: "", password: "", confirm: "",
+    orgName: "",
+    description: "",
+    website: "",
+    teamSize: "",
+    adminName: "",
+    email: "",
+    password: "",
+    confirm: "",
   });
-  const [error, setError]     = useState("");
+  const searchParams = useSearchParams();
+  const reason = searchParams.get("reason");
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +35,13 @@ export default function AdminSignupForm({ setMode }: Props) {
     setError("");
     setSuccess("");
 
-    if (!form.orgName || !form.adminName || !form.email || !form.password || !form.confirm) {
+    if (
+      !form.orgName ||
+      !form.adminName ||
+      !form.email ||
+      !form.password ||
+      !form.confirm
+    ) {
       return setError("All required fields must be filled");
     }
     if (form.password !== form.confirm) {
@@ -49,22 +64,24 @@ export default function AdminSignupForm({ setMode }: Props) {
         teamSize: form.teamSize ? Number(form.teamSize) : undefined,
       });
 
-      setSuccess("Organizer account created! Redirecting to login...");
+      //setSuccess("Organizer account created! Redirecting to login...");
+      toast.success("Organizer account created! Redirecting to login...");
       setTimeout(() => setMode("login"), 1500);
-
     } catch (err: unknown) {
       const msg =
-        (err as { response?: { data?: { msg?: string } } })?.response?.data?.msg ||
-        "Signup failed. Try again.";
-      setError(msg);
+        (err as { response?: { data?: { msg?: string } } })?.response?.data
+          ?.msg || "Signup failed. Try again.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-h-[500px] overflow-y-auto pr-1 space-y-1">
-
+    <form
+      onSubmit={handleSubmit}
+      className="max-h-[500px] overflow-y-auto pr-1 space-y-1"
+    >
       {error && (
         <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center mb-2">
           {error}
@@ -108,11 +125,19 @@ export default function AdminSignupForm({ setMode }: Props) {
 
       {/* File Upload (UI only) */}
       <div className="mb-3">
-        <label className="text-sm text-gray-400 block mb-1">Verification Document</label>
+        <label className="text-sm text-gray-400 block mb-1">
+          Verification Document
+        </label>
         <label className="flex items-center justify-between px-3 py-3 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition">
-          <span className="text-gray-400 text-sm">Upload proof of affiliation (PDF/JPG)</span>
+          <span className="text-gray-400 text-sm">
+            Upload proof of affiliation (PDF/JPG)
+          </span>
           <span className="text-purple-400 text-sm">⬆️</span>
-          <input type="file" className="hidden" onChange={(e) => console.log("File:", e.target.files?.[0])} />
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) => console.log("File:", e.target.files?.[0])}
+          />
         </label>
       </div>
 
@@ -159,13 +184,26 @@ export default function AdminSignupForm({ setMode }: Props) {
       <p className="text-center text-gray-400 my-3 text-sm">OR CONTINUE WITH</p>
 
       <div className="flex gap-2">
-        <button type="button" className="flex-1 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition">Google</button>
-        <button type="button" className="flex-1 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition">GitHub</button>
+        <button
+          type="button"
+          className="flex-1 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition"
+        >
+          Google
+        </button>
+        <button
+          type="button"
+          className="flex-1 p-2 bg-white/10 rounded-lg hover:bg-white/20 transition"
+        >
+          GitHub
+        </button>
       </div>
 
       <p className="text-center text-sm mt-4 text-gray-400">
         Already have an account?{" "}
-        <span className="text-purple-400 cursor-pointer hover:underline" onClick={() => setMode("login")}>
+        <span
+          className="text-purple-400 cursor-pointer hover:underline"
+          onClick={() => setMode("login")}
+        >
           Log in
         </span>
       </p>
