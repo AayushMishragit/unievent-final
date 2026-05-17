@@ -25,6 +25,6 @@ router.get("/user-only", protect, isUser, (req, res) => {
   res.json({ msg: `Welcome, User ${req.user.name}! 👋` });
 });
 
-router.post("/forget-password", forgotPassword);
+router.post("/forget-password", forgotPassword); //done all
 
 module.exports = router;
