@@ -51,9 +51,9 @@ export const logout = () => {
   localStorage.removeItem("user");
 };
 
-export const forgetpassword = (data: {
+export const forgetPasswordservice = (data: {
   email: string;
   name: string;
-  password: string;
   newpassword: string;
+  confirmpassword: string;
 }) => API.post("/forget-password", data);

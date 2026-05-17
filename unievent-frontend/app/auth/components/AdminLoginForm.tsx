@@ -3,12 +3,15 @@ import { useState } from "react";
 import { loginUser } from "../../Service/authService";
 import { useRouter } from "next/navigation";
 import { ToastContainer, toast } from "react-toastify";
+import ForgotPasswordModal from "@/components/layout/ForgotpasswordModal";
+
 type Props = {
   setMode: (mode: "signup" | "login") => void; // ✅ fixed type
 };
 
 export default function AdminLoginForm({ setMode }: Props) {
   const [form, setForm] = useState({ email: "", password: "" });
+  const [forgotOpen, setForgotOpen] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -71,6 +74,21 @@ export default function AdminLoginForm({ setMode }: Props) {
         placeholder="Password"
         value={form.password}
         onChange={(e) => setForm({ ...form, password: e.target.value })}
+      />
+      <div className="text-right mt-1">
+        <button
+          type="button"
+          onClick={() => setForgotOpen(true)}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Forgot Password?
+        </button>
+      </div>
+
+      {/* Modal */}
+      <ForgotPasswordModal
+        isOpen={forgotOpen}
+        onClose={() => setForgotOpen(false)}
       />
 
       <button
