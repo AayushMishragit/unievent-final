@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { PlusCircle, Calendar, Tag, FileText, CheckCircle } from "lucide-react";
-
+import { createEvent } from "@/app/Service/authService";
 // Replace with your real auth context import path
 // import { useAuth } from '../AuthContext';
 function useAuth() {
@@ -76,50 +76,41 @@ export default function Dashboard() {
     setSuccessMessage("");
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Validation
     const newErrors: FormErrors = {};
+
     if (!formData.name.trim()) newErrors.name = "Event name is required";
+
     if (!formData.date) newErrors.date = "Event date is required";
+
     if (!formData.category) newErrors.category = "Category is required";
+
     if (!formData.description.trim())
       newErrors.description = "Description is required";
-    if (!formData.formlink)
-      newErrors.formlink = "Link of the registration link is required";
+
+    if (!formData.formlink.trim())
+      newErrors.formlink = "Registration link is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    // Fix: user null-check before accessing user.id / user.name
-    if (!user) {
-      router.push("/");
-      return;
+    try {
+      await createEvent(formData);
+
+      setFormData(EMPTY_FORM);
+
+      setSuccessMessage("Event created successfully!");
+
+      redirectTimer.current = setTimeout(() => {
+        router.push("/explorepage");
+      }, 2000);
+    } catch (err) {
+      console.error(err);
     }
-
-    // Fix: localStorage inside handler (client-only) — safe, no SSR issue here
-    const existing = JSON.parse(localStorage.getItem("events") ?? "[]");
-
-    const newEvent = {
-      id: Date.now().toString(),
-      ...formData,
-      createdBy: user.id,
-      createdByName: user.name,
-      createdAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem("events", JSON.stringify([...existing, newEvent]));
-
-    setFormData(EMPTY_FORM);
-    setSuccessMessage("Event created successfully!");
-
-    // Fix: store ref so timer can be cleared on unmount
-    redirectTimer.current = setTimeout(() => {
-      router.push("/events");
-    }, 2000);
   };
 
   return (
@@ -261,7 +252,7 @@ export default function Dashboard() {
               </label>
               <input
                 type="text"
-                name="form"
+                name="formlink"
                 value={formData.formlink}
                 onChange={handleChange}
                 className={`w-full px-4 py-3 bg-gray-900 border rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${

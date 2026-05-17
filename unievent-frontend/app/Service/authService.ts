@@ -20,6 +20,28 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
+export const EventAPI = axios.create({
+  baseURL: "http://localhost:5000/api/events",
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+EventAPI.interceptors.request.use((config) => {
+  const raw = localStorage.getItem("user");
+
+  if (raw) {
+    const parsed = JSON.parse(raw);
+
+    if (parsed?.token) {
+      config.headers.Authorization = `Bearer ${parsed.token}`;
+    }
+  }
+
+  return config;
+});
+
 // User Signup
 export const signupUser = (data: {
   name: string;
@@ -59,3 +81,11 @@ export const forgetPasswordservice = (data: {
   newpassword: string;
   confirmpassword: string;
 }) => API.post("/forget-password", data);
+
+export const createEvent = (data: {
+  name: string;
+  date: string;
+  category: string;
+  description: string;
+  formlink: string;
+}) => EventAPI.post("/", data);

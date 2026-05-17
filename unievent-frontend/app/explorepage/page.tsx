@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 import {
   Search,
   Calendar,
@@ -10,6 +11,7 @@ import {
   Clock,
   ArrowRight,
   TrendingUp,
+  Ban,
 } from "lucide-react";
 
 // Replace with your real auth context import
@@ -21,14 +23,33 @@ function useAuth() {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Event {
-  id: string;
+  _id: string; // MongoDB uses _id
   name: string;
   description: string;
   category: string;
   date: string;
-  /** Pre-computed on load so it's stable across renders (avoids hydration mismatch). */
-  interestedCount: number;
+  formlink: string;
+  isDisabled: boolean;
+  createdByName: string;
+  interestedCount: number; // stable random, attached after fetch
 }
+
+// ─── Axios instance (same pattern as your auth service) ───────────────────────
+
+const EventAPI = axios.create({
+  baseURL: "http://localhost:5000/api/events",
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
+
+EventAPI.interceptors.request.use((config) => {
+  const raw = localStorage.getItem("user");
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    if (parsed?.token) config.headers.Authorization = `Bearer ${parsed.token}`;
+  }
+  return config;
+});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,21 +99,39 @@ export default function ExplorePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "name">("date");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // ── Load events from localStorage (client-only) ───────────────────────────
+  // ── Fetch events from API ─────────────────────────────────────────────────
   useEffect(() => {
-    const raw: Omit<Event, "interestedCount">[] = JSON.parse(
-      localStorage.getItem("events") ?? "[]",
-    );
-    // Attach a stable random count here so it never changes between renders
-    const hydrated: Event[] = raw.map((e) => ({
-      ...e,
-      interestedCount: Math.floor(Math.random() * 200 + 50),
-    }));
-    setEvents(hydrated);
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const { data } = await EventAPI.get("/", {
+          params: { limit: 100 }, // fetch all, filter client-side to keep your existing UX
+        });
+
+        // Attach stable random interestedCount (same as your original pattern)
+        const hydrated: Event[] = data.events.map(
+          (e: Omit<Event, "interestedCount">) => ({
+            ...e,
+            interestedCount: Math.floor(Math.random() * 200 + 50),
+          }),
+        );
+
+        setEvents(hydrated);
+      } catch {
+        setError("Failed to load events. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
   }, []);
 
-  // ── Filter + sort whenever dependencies change ────────────────────────────
+  // ── Filter + sort (same logic as your original) ───────────────────────────
   useEffect(() => {
     let filtered = [...events];
 
@@ -110,13 +149,9 @@ export default function ExplorePage() {
     }
 
     filtered.sort((a, b) => {
-      if (sortBy === "date") {
-        // Fix: convert to timestamps (numbers) before subtracting
+      if (sortBy === "date")
         return new Date(a.date).getTime() - new Date(b.date).getTime();
-      }
-      if (sortBy === "name") {
-        return a.name.localeCompare(b.name);
-      }
+      if (sortBy === "name") return a.name.localeCompare(b.name);
       return 0;
     });
 
@@ -126,7 +161,7 @@ export default function ExplorePage() {
   const trendingEvents = filteredEvents.slice(0, 3);
   const upcomingEvents = filteredEvents.slice(3);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="bg-gray-900 min-h-screen">
       {/* Header */}
@@ -139,8 +174,6 @@ export default function ExplorePage() {
             <p className="text-xl text-gray-400 mb-8">
               Discover amazing events happening across your campus
             </p>
-
-            {/* Search Bar */}
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-2 flex items-center">
               <Search className="w-5 h-5 text-gray-400 ml-3" />
               <input
@@ -161,7 +194,6 @@ export default function ExplorePage() {
       <div className="bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-wrap gap-4 items-center justify-between">
-            {/* Category Pills */}
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => (
                 <button
@@ -177,8 +209,6 @@ export default function ExplorePage() {
                 </button>
               ))}
             </div>
-
-            {/* Sort Dropdown — fix: HTMLSelectElement, not HTMLInputElement */}
             <select
               value={sortBy}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -195,7 +225,30 @@ export default function ExplorePage() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-12">
-        {filteredEvents.length === 0 ? (
+        {/* Loading */}
+        {loading && (
+          <div className="text-center py-20">
+            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Loading events...</p>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && !loading && (
+          <div className="text-center py-20">
+            <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-red-400 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Empty */}
+        {!loading && !error && filteredEvents.length === 0 && (
           <div className="text-center py-20">
             <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-white mb-2">
@@ -215,9 +268,12 @@ export default function ExplorePage() {
               </button>
             )}
           </div>
-        ) : (
+        )}
+
+        {/* Events */}
+        {!loading && !error && filteredEvents.length > 0 && (
           <>
-            {/* Trending Section */}
+            {/* ── Trending Section ── */}
             {trendingEvents.length > 0 && (
               <div className="mb-12">
                 <div className="flex items-center justify-between mb-6">
@@ -235,17 +291,31 @@ export default function ExplorePage() {
                 <div className="grid md:grid-cols-3 gap-6">
                   {trendingEvents.map((event) => (
                     <div
-                      key={event.id}
-                      className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-blue-500/50 transition-all group cursor-pointer"
+                      key={event._id}
+                      className={`bg-gray-800 border rounded-xl overflow-hidden transition-all group ${
+                        event.isDisabled
+                          ? "border-red-500/30 opacity-60 grayscale cursor-not-allowed"
+                          : "border-gray-700 hover:border-blue-500/50 cursor-pointer"
+                      }`}
                     >
-                      {/* Image Placeholder */}
+                      {/* Gradient banner */}
                       <div
-                        className={`h-48 bg-gradient-to-br ${getCategoryColor(event.category)} flex items-center justify-center`}
+                        className={`h-48 bg-gradient-to-br ${getCategoryColor(event.category)} flex items-center justify-center relative`}
                       >
                         <Calendar className="w-16 h-16 text-white opacity-50" />
+                        {/* Disabled overlay */}
+                        {event.isDisabled && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <div className="flex items-center gap-2 bg-red-900/80 border border-red-500/50 px-4 py-2 rounded-full">
+                              <Ban className="w-4 h-4 text-red-400" />
+                              <span className="text-red-300 text-sm font-semibold">
+                                Event Disabled
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Content */}
                       <div className="p-6">
                         <div className="flex items-center justify-between mb-3">
                           <span
@@ -255,19 +325,18 @@ export default function ExplorePage() {
                           </span>
                           <div className="flex items-center space-x-1 text-gray-400 text-sm">
                             <Users className="w-4 h-4" />
-                            <span>125 going</span>
+                            <span>{event.interestedCount} going</span>
                           </div>
                         </div>
 
                         <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
                           {event.name}
                         </h3>
-
                         <p className="text-gray-400 text-sm mb-4 line-clamp-2">
                           {event.description}
                         </p>
 
-                        <div className="space-y-2 text-sm text-gray-400">
+                        <div className="space-y-2 text-sm text-gray-400 mb-4">
                           <div className="flex items-center space-x-2">
                             <Clock className="w-4 h-4" />
                             <span>{formatDate(event.date)}</span>
@@ -278,10 +347,26 @@ export default function ExplorePage() {
                           </div>
                         </div>
 
-                        <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition flex items-center justify-center space-x-2">
-                          <span>View Details</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
+                        {/* Register button — blocked if disabled */}
+                        {event.isDisabled ? (
+                          <button
+                            disabled
+                            className="w-full bg-gray-700 text-gray-500 py-2 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed"
+                          >
+                            <Ban className="w-4 h-4" />
+                            <span>Registration Closed</span>
+                          </button>
+                        ) : (
+                          <a
+                            href={event.formlink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition flex items-center justify-center space-x-2"
+                          >
+                            <span>Register Now</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -289,7 +374,7 @@ export default function ExplorePage() {
               </div>
             )}
 
-            {/* All Events Grid */}
+            {/* ── All Events Grid ── */}
             {upcomingEvents.length > 0 && (
               <div>
                 <h2 className="text-2xl font-bold text-white mb-6">
@@ -298,8 +383,12 @@ export default function ExplorePage() {
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {upcomingEvents.map((event) => (
                     <div
-                      key={event.id}
-                      className="bg-gray-800 border border-gray-700 rounded-xl p-6 hover:border-gray-600 transition-all group"
+                      key={event._id}
+                      className={`bg-gray-800 border rounded-xl p-6 transition-all group ${
+                        event.isDisabled
+                          ? "border-red-500/30 opacity-60 grayscale cursor-not-allowed"
+                          : "border-gray-700 hover:border-gray-600 cursor-pointer"
+                      }`}
                     >
                       <div className="flex items-start justify-between mb-4">
                         <span
@@ -322,20 +411,40 @@ export default function ExplorePage() {
                       <h3 className="text-lg font-bold text-white mb-2 group-hover:text-blue-400 transition">
                         {event.name}
                       </h3>
-
                       <p className="text-gray-400 text-sm mb-4 line-clamp-2">
                         {event.description}
                       </p>
 
+                      {/* Disabled notice */}
+                      {event.isDisabled && (
+                        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-red-900/30 border border-red-500/40 rounded-lg">
+                          <Ban className="w-4 h-4 text-red-400 shrink-0" />
+                          <p className="text-red-400 text-xs">
+                            Disabled by organiser
+                          </p>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between text-sm text-gray-400">
                         <div className="flex items-center space-x-1">
                           <Users className="w-4 h-4" />
-                          {/* Fix: use stable pre-computed value instead of Math.random() in render */}
                           <span>{event.interestedCount} interested</span>
                         </div>
-                        <button className="text-blue-400 hover:text-blue-300 font-semibold">
-                          Learn More →
-                        </button>
+
+                        {event.isDisabled ? (
+                          <span className="text-gray-600 font-semibold flex items-center gap-1">
+                            <Ban className="w-3 h-3" /> Closed
+                          </span>
+                        ) : (
+                          <a
+                            href={event.formlink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 font-semibold"
+                          >
+                            Learn More →
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}

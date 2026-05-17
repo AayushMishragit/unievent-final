@@ -29,6 +29,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/events", require("./routes/eventroutes"));
 
 app.get("/", (req, res) => {
   res.json({ msg: " API is running 🚀" });
