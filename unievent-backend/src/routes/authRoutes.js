@@ -7,6 +7,7 @@ const {
   login,
   getMe,
   forgotPassword,
+  logout,
 } = require("../controllers/authController");
 
 const { protect, isAdmin, isUser } = require("../middleware/authMiddleware");
@@ -26,5 +27,6 @@ router.get("/user-only", protect, isUser, (req, res) => {
 });
 
 router.post("/forget-password", forgotPassword); //done all
+router.post("/logout", logout);
 
 module.exports = router;

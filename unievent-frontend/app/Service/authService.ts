@@ -1,7 +1,8 @@
 import axios from "axios";
 
-const API = axios.create({
+export const API = axios.create({
   baseURL: "http://localhost:5000/api/auth",
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -47,7 +48,8 @@ export const loginUser = (data: { email: string; password: string }) =>
 export const getMe = () => API.get("/me");
 
 // Logout (client-side)
-export const logout = () => {
+export const logout = async () => {
+  await API.post("/logout");
   localStorage.removeItem("user");
 };
 

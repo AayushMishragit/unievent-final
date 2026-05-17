@@ -115,6 +115,7 @@ const forgotPasswordService = async ({
 
   return { message: "Password reset successful! Please login." };
 };
+// authService.ts
 
 // ✅ export all services together
 module.exports = {

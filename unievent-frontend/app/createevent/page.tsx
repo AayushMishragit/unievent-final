@@ -17,6 +17,7 @@ interface FormData {
   date: string;
   category: string;
   description: string;
+  formlink: string;
 }
 
 // Partial so fields start empty and are only set on validation failure
@@ -40,6 +41,7 @@ const EMPTY_FORM: FormData = {
   date: "",
   category: "",
   description: "",
+  formlink: "",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -84,6 +86,8 @@ export default function Dashboard() {
     if (!formData.category) newErrors.category = "Category is required";
     if (!formData.description.trim())
       newErrors.description = "Description is required";
+    if (!formData.formlink)
+      newErrors.formlink = "Link of the registration link is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -131,8 +135,7 @@ export default function Dashboard() {
             Create and manage your college events from your dashboard.
           </p>
         </div>
-
-        {/* Create Event Form */}
+        Create Event Form
         <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-8">
           <div className="flex items-center space-x-3 mb-6">
             <div className="bg-blue-500/10 p-2 rounded-lg">
@@ -248,6 +251,28 @@ export default function Dashboard() {
                 </p>
               )}
             </div>
+            {/* event form */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>Event Form</span>
+                </div>
+              </label>
+              <input
+                type="text"
+                name="form"
+                value={formData.formlink}
+                onChange={handleChange}
+                className={`w-full px-4 py-3 bg-gray-900 border rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors.name ? "border-red-500" : "border-gray-700"
+                }`}
+                placeholder="e.g., Annual Tech Fest 2026"
+              />
+              {errors.name && (
+                <p className="text-red-400 text-sm mt-1">{errors.formlink}</p>
+              )}
+            </div>
 
             {/* Submit Button */}
             <button
@@ -259,7 +284,6 @@ export default function Dashboard() {
             </button>
           </form>
         </div>
-
         {/* Quick Actions */}
         <div className="mt-8 bg-gray-800 border border-gray-700 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">

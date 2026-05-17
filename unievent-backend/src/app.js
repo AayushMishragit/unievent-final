@@ -8,7 +8,16 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000", // ✅ exact frontend URL, no trailing slash
+    credentials: true, // ✅ required for cookies
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ allow OPTIONS
+    allowedHeaders: ["Content-Type", "Authorization"], // ✅ allow these headers
+  }),
+);
+
+app.options("*", cors());
 
 app.use(express.json());
 

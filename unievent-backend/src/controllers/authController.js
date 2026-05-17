@@ -27,6 +27,13 @@ const login = async (req, res) => {
   console.log("📥 [login] Request for:", req.body.email);
   try {
     const result = await loginService(req.body);
+    res.cookie("token", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+    });
     return res.status(200).json(result);
   } catch (err) {
     console.error("❌ [login] Error:", err.msg || err.message);
@@ -62,4 +69,14 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getMe, forgotPassword };
+const logout = async (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+  return res.status(200).json({ msg: "Logged out successfully" });
+};
+
+module.exports = { signup, login, getMe, forgotPassword, logout };

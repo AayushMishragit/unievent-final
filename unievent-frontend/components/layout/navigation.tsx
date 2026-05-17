@@ -3,6 +3,7 @@ import { Activity, Menu } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { logout } from "@/app/Service/authService";
 
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,10 +14,18 @@ export default function Navigation() {
     setOpen(!isOpen);
   };
 
-  const handlelogout = () => {
-    localStorage.removeItem("user");
-    window.dispatchEvent(new Event("storage"));
-    window.location.href = "/auth?mode=login";
+  const handleLogout = async () => {
+    // ✅ async
+    try {
+      await logout(); // ✅ call logout service
+      window.dispatchEvent(new Event("storage"));
+      window.location.href = "/auth?mode=login";
+    } catch (err) {
+      console.error("Logout error:", err);
+      // still clear and redirect even if API fails
+      localStorage.removeItem("user");
+      window.location.href = "/auth?mode=login";
+    }
   };
 
   return (
@@ -78,7 +87,7 @@ export default function Navigation() {
                rounded-lg shadow-lg p-2 z-20"
             >
               <span
-                onClick={handlelogout}
+                onClick={handleLogout}
                 className="transition ease-in-out duration-150 
                  block text-white px-4 py-2 
                  bg-gradient-to-t from-sky-500 to-indigo-500 
@@ -134,7 +143,7 @@ export default function Navigation() {
           </button>
 
           <span
-            onClick={handlelogout}
+            onClick={handleLogout}
             className="text-white px-4 py-2 bg-gradient-to-t from-sky-500 to-indigo-500 rounded-md m-2 text-center cursor-pointer"
           >
             Logout

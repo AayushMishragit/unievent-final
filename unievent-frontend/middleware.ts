@@ -1,44 +1,43 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-import { toast } from "react-toastify";
+import { jwtVerify } from "jose"; // ✅ use jose instead of jsonwebtoken
 
-export function das_middleware(request: NextRequest) {
-  //dotenv.config();
-  //read current pathname
+export async function middleware(request: NextRequest) {
+  // ✅ add async
   const currentroute = request.nextUrl.pathname;
-  //get the token
   const token = request.cookies.get("token")?.value;
+
+  console.log("🔍 Route:", currentroute);
+  console.log("🔍 Token found:", !!token);
 
   if (!token) {
     return NextResponse.redirect(
-      new URL("/auth?mode=signup?reasosn=account", request.url),
+      new URL("/auth?mode=signin&reason=not_logged_in", request.url),
     );
   }
-  try {
-    const decoded: any = jwt.verify(
-      token,
-      process.env.JWT_SECRET! || "defaultuser",
-    );
 
-    if (
-      currentroute.startsWith("/admindashboard") &&
-      decoded.role !== "admin"
-    ) {
-      return new NextResponse("Not Found", {
-        status: 404,
-      });
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET!); // ✅ jose needs Uint8Array
+
+    const { payload } = await jwtVerify(token, secret); // ✅ use jwtVerify from jose
+
+    console.log("✅ Decoded:", payload);
+
+    if (payload.role !== "admin") {
+      return NextResponse.redirect(
+        new URL("/auth?mode=signin&reason=unauthorized", request.url),
+      );
     }
+
     return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL("/AdminLoginForm", request.url));
+  } catch (err) {
+    console.log("❌ JWT error:", err);
+    return NextResponse.redirect(
+      new URL("/auth?mode=signin&reason=session_expired", request.url),
+    );
   }
 }
 
-// Apply middleware only on admin dashboard
 export const config = {
-  matcher: ["/admindashboard/:path*"],
+  matcher: ["/createevent/:path*", "/admindashboard/:path*"],
 };
-
-export default das_middleware;
