@@ -36,6 +36,7 @@ export default function UserLoginForm({ setMode }: Props) {
       }
 
       localStorage.setItem("user", JSON.stringify({ token, user }));
+
       toast.success("User login successful:");
       setTimeout(() => {
         router.push("/");

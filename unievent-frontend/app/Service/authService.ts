@@ -89,3 +89,5 @@ export const createEvent = (data: {
   description: string;
   formlink: string;
 }) => EventAPI.post("/", data);
+export const toggleDisableEvent = (eventId: string) =>
+  EventAPI.patch(`/${eventId}/toggle-disable`);

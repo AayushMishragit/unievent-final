@@ -351,7 +351,7 @@ export default function ExplorePage() {
                         {event.isDisabled ? (
                           <button
                             disabled
-                            className="w-full bg-gray-700 text-gray-500 py-2 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed"
+                            className="w-full mt-4 bg-gray-700 text-gray-500 py-2 rounded-lg font-semibold flex items-center justify-center space-x-2 cursor-not-allowed"
                           >
                             <Ban className="w-4 h-4" />
                             <span>Registration Closed</span>

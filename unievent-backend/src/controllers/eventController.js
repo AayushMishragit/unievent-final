@@ -104,9 +104,19 @@ const deleteEvent = async (req, res) => {
   }
 };
 
+const toggleDisableEvent = async (req, res) => {
+  try {
+    const event = await eventService.toggleDisableEvent(req.params.id);
+    res.json({ isDisabled: event.isDisabled });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   createEvent,
   getAllEvents,
   getEventById,
   deleteEvent,
+  toggleDisableEvent,
 };

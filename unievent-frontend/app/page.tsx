@@ -159,7 +159,7 @@ export default function LandingPage() {
                     } else if (isAdmin) {
                       router.push("/admindashboard");
                     } else {
-                      router.push("/dashboard");
+                      router.push("/promotionpage");
                     }
                   }}
                 >
@@ -191,7 +191,7 @@ export default function LandingPage() {
                         ? "Get Started"
                         : isAdmin
                           ? "Manage Events"
-                          : "Open Dashboard"}
+                          : "Learn more"}
                     </span>
 
                     <ArrowRight className="w-5 h-5" />

@@ -45,6 +45,10 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    isDisabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );

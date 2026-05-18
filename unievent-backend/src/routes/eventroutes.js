@@ -8,6 +8,11 @@ const { protect } = require("../middleware/authMiddleware");
 
 // Public routes
 router.get("/", eventController.getAllEvents);
+router.patch(
+  "/:id/toggle-disable",
+  protect,
+  eventController.toggleDisableEvent,
+);
 
 router.get("/:id", eventController.getEventById);
 
@@ -15,5 +20,6 @@ router.get("/:id", eventController.getEventById);
 router.post("/", protect, eventController.createEvent);
 
 router.delete("/:id", protect, eventController.deleteEvent);
+// PATCH /api/events/:id/toggle-disable
 
 module.exports = router;

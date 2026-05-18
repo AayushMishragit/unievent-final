@@ -85,9 +85,18 @@ const deleteEvent = async (id, userId) => {
   return { deleted: true };
 };
 
+const toggleDisableEvent = async (eventId) => {
+  const event = await Event.findById(eventId);
+  if (!event) throw new Error("Event not found");
+  event.isDisabled = !event.isDisabled;
+  await event.save();
+  return event;
+};
+
 module.exports = {
   createEvent,
   getAllEvents,
   getEventById,
   deleteEvent,
+  toggleDisableEvent,
 };
