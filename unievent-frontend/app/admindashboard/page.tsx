@@ -1,56 +1,76 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
-
+import { useRouter } from "next/navigation";
+import axios from "axios";
 import {
-  Shield,
-  Users,
+  Search,
   Calendar,
-  Trash2,
-  AlertCircle,
+  Users,
+  Clock,
+  ArrowRight,
   TrendingUp,
+  Ban,
   Activity,
+  Tag,
+  LayoutGrid,
+  Flame,
   CheckCircle,
 } from "lucide-react";
 
+function useAuth() {
+  return { isAuthenticated: false };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  college: string;
-  phone: string;
-  createdAt: string;
-}
-
 interface Event {
-  id: string;
+  _id: string;
   name: string;
+  description: string;
   category: string;
   date: string;
-  createdBy: string;
+  formlink: string;
+  isDisabled: boolean;
   createdByName: string;
+  interestedCount: number;
 }
 
-interface Stats {
-  totalUsers: number;
-  totalEvents: number;
-  activeEvents: number;
-  // Fix: properly typed — Object.entries returns [string, number][] with this
-  categories: Record<string, number>;
-}
+type ActiveTab = "all" | "trending";
 
-// Fix: strict union instead of bare string — prevents invalid tab values
-type ActiveTab = "overview" | "users" | "events";
+// ─── Axios instance (unchanged from original) ─────────────────────────────────
 
-// Fix: proper discriminated union for deleteConfirm — id is string when set, null when cleared
-type DeleteConfirm =
-  | { type: "user" | "event"; id: string }
-  | { type: null; id: null };
+const EventAPI = axios.create({
+  baseURL: "http://localhost:5000/api/events",
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
+
+EventAPI.interceptors.request.use((config) => {
+  const raw = localStorage.getItem("user");
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    if (parsed?.token) config.headers.Authorization = `Bearer ${parsed.token}`;
+  }
+  return config;
+});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const CATEGORY_BADGE: Record<string, string> = {
+  Technical: "bg-blue-500/20   text-blue-400   border border-blue-500/40",
+  Cultural: "bg-purple-500/20  text-purple-400  border border-purple-500/40",
+  Sports: "bg-green-500/20  text-green-400  border border-green-500/40",
+  Workshop: "bg-orange-500/20 text-orange-400 border border-orange-500/40",
+  Seminar: "bg-pink-500/20   text-pink-400   border border-pink-500/40",
+  Competition: "bg-red-500/20    text-red-400    border border-red-500/40",
+  Social: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/40",
+  Other: "bg-gray-500/20   text-gray-400   border border-gray-500/40",
+};
+
+function badge(category: string) {
+  return CATEGORY_BADGE[category] ?? CATEGORY_BADGE["Other"];
+}
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -60,134 +80,124 @@ function formatDate(dateString: string): string {
   });
 }
 
+const CATEGORIES = [
+  "All",
+  "Technical",
+  "Cultural",
+  "Sports",
+  "Workshop",
+  "Seminar",
+  "Competition",
+  "Social",
+  "Other",
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AdminDashboard() {
-  const [users, setUsers] = useState<User[]>([]);
+export default function ExplorePage() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+
   const [events, setEvents] = useState<Event[]>([]);
-  const [stats, setStats] = useState<Stats>({
-    totalUsers: 0,
-    totalEvents: 0,
-    activeEvents: 0,
-    categories: {},
-  });
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"date" | "name">("date");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("all");
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
-  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm>({
-    type: null,
-    id: null,
-  });
-
-  // Fix: localStorage wrapped in useEffect — safe for Next.js SSR
+  // ── Fetch events (unchanged from original) ────────────────────────────────
   useEffect(() => {
-    loadData();
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const { data } = await EventAPI.get("/", { params: { limit: 100 } });
+        const hydrated: Event[] = data.events.map(
+          (e: Omit<Event, "interestedCount">) => ({
+            ...e,
+            interestedCount: Math.floor(Math.random() * 200 + 50),
+          }),
+        );
+        setEvents(hydrated);
+      } catch {
+        setError("Failed to load events. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
   }, []);
 
-  const loadData = () => {
-    const storedUsers: User[] = JSON.parse(
-      localStorage.getItem("users") ?? "[]",
-    );
-    const storedEvents: Event[] = JSON.parse(
-      localStorage.getItem("events") ?? "[]",
-    );
-
-    setUsers(storedUsers);
-    setEvents(storedEvents);
-
-    const categoryCount: Record<string, number> = {};
-    storedEvents.forEach((event) => {
-      categoryCount[event.category] = (categoryCount[event.category] ?? 0) + 1;
+  // ── Filter + sort (unchanged from original) ───────────────────────────────
+  useEffect(() => {
+    let filtered = [...events];
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (e) =>
+          e.name.toLowerCase().includes(lower) ||
+          e.description.toLowerCase().includes(lower),
+      );
+    }
+    if (categoryFilter && categoryFilter !== "All") {
+      filtered = filtered.filter((e) => e.category === categoryFilter);
+    }
+    filtered.sort((a, b) => {
+      if (sortBy === "date")
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      return 0;
     });
+    setFilteredEvents(filtered);
+  }, [searchTerm, categoryFilter, sortBy, events]);
 
-    const today = new Date();
-    const activeEvents = storedEvents.filter(
-      (event) => new Date(event.date) >= today,
-    ).length;
+  // ── Derived stats (same data, admin-style counters) ───────────────────────
+  const today = new Date();
+  const activeEvents = events.filter(
+    (e) => new Date(e.date) >= today && !e.isDisabled,
+  ).length;
+  const disabledCount = events.filter((e) => e.isDisabled).length;
+  const categoryCount: Record<string, number> = {};
+  events.forEach((e) => {
+    categoryCount[e.category] = (categoryCount[e.category] ?? 0) + 1;
+  });
 
-    setStats({
-      totalUsers: storedUsers.length,
-      totalEvents: storedEvents.length,
-      activeEvents,
-      categories: categoryCount,
-    });
-  };
+  const trendingEvents = filteredEvents.slice(0, 3);
+  const displayEvents =
+    activeTab === "trending" ? trendingEvents : filteredEvents;
 
-  // Fix: typed userId as string
-  const handleDeleteUser = (userId: string) => {
-    const updatedUsers = users.filter((u) => u.id !== userId);
-    const updatedEvents = events.filter((e) => e.createdBy !== userId);
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
-    localStorage.setItem("events", JSON.stringify(updatedEvents));
-    loadData();
-    setDeleteConfirm({ type: null, id: null });
-  };
-
-  // Fix: typed eventId as string
-  const handleDeleteEvent = (eventId: string) => {
-    const updatedEvents = events.filter((e) => e.id !== eventId);
-    localStorage.setItem("events", JSON.stringify(updatedEvents));
-    loadData();
-    setDeleteConfirm({ type: null, id: null });
-  };
-
-  // Fix: id is guaranteed non-null here via the discriminated union type
-  const handleConfirmDelete = () => {
-    if (!deleteConfirm.type) return;
-    if (deleteConfirm.type === "user") handleDeleteUser(deleteConfirm.id);
-    if (deleteConfirm.type === "event") handleDeleteEvent(deleteConfirm.id);
-  };
-
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="bg-gray-900 min-h-screen">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-red-900/20 to-orange-900/20 border-b border-gray-800">
-        <div className="container mx-auto px-4 py-8 flex flex-row justify-between items-center">
-          {/* Left side content */}
-          <div className="flex items-center space-x-3 flex-row">
-            <div className="bg-red-500/10 p-3 rounded-xl">
-              <Shield className="w-8 h-8 text-red-400" />
+      {/* ── Header ── */}
+      <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-b border-gray-800">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center space-x-3">
+            <div className="bg-blue-500/10 p-3 rounded-xl">
+              <LayoutGrid className="w-8 h-8 text-blue-400" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-              <p className="text-gray-400">
-                Manage users, events, and platform analytics
-              </p>
+              <h1 className="text-3xl font-bold text-white">Explore Events</h1>
+              <p className="text-gray-400">Browse and discover campus events</p>
             </div>
           </div>
-
-          {/* Right side button */}
-          <Link
-            href="/createevent"
-            className="bg-blue-600 hover:bg-blue-700 hover:border-blue-400 border-1 border-blue-600 text-white font-semibold px-4 py-2 rounded-lg transition"
-          >
-            Create Event
-          </Link>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
+        {/* ── Stat Cards ── */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/40 border border-blue-700/50 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <Users className="w-8 h-8 text-blue-400" />
+              <Calendar className="w-8 h-8 text-blue-400" />
               <Activity className="w-5 h-5 text-blue-400" />
             </div>
             <div className="text-3xl font-bold text-white mb-1">
-              {stats.totalUsers}
+              {events.length}
             </div>
-            <div className="text-blue-300 text-sm">Total Users</div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/40 border border-purple-700/50 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Calendar className="w-8 h-8 text-purple-400" />
-              <TrendingUp className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {stats.totalEvents}
-            </div>
-            <div className="text-purple-300 text-sm">Total Events</div>
+            <div className="text-blue-300 text-sm">Total Events</div>
           </div>
 
           <div className="bg-gradient-to-br from-green-900/40 to-green-800/40 border border-green-700/50 rounded-xl p-6">
@@ -196,280 +206,307 @@ export default function AdminDashboard() {
               <Activity className="w-5 h-5 text-green-400" />
             </div>
             <div className="text-3xl font-bold text-white mb-1">
-              {stats.activeEvents}
+              {activeEvents}
             </div>
             <div className="text-green-300 text-sm">Active Events</div>
           </div>
 
+          <div className="bg-gradient-to-br from-red-900/40 to-red-800/40 border border-red-700/50 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Ban className="w-8 h-8 text-red-400" />
+              <Activity className="w-5 h-5 text-red-400" />
+            </div>
+            <div className="text-3xl font-bold text-white mb-1">
+              {disabledCount}
+            </div>
+            <div className="text-red-300 text-sm">Disabled Events</div>
+          </div>
+
           <div className="bg-gradient-to-br from-orange-900/40 to-orange-800/40 border border-orange-700/50 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <Activity className="w-8 h-8 text-orange-400" />
+              <Tag className="w-8 h-8 text-orange-400" />
               <TrendingUp className="w-5 h-5 text-orange-400" />
             </div>
             <div className="text-3xl font-bold text-white mb-1">
-              {Object.keys(stats.categories).length}
+              {Object.keys(categoryCount).length}
             </div>
             <div className="text-orange-300 text-sm">Categories</div>
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* ── Main Panel ── */}
         <div className="bg-gray-800 border border-gray-700 rounded-xl mb-6">
-          <div className="flex border-b border-gray-700">
-            {(["overview", "users", "events"] as ActiveTab[]).map((tab) => (
+          {/* Tabs + search + sort bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-700 px-6 gap-3">
+            {/* Tabs */}
+            <div className="flex">
+              {(
+                [
+                  {
+                    key: "all",
+                    label: `All Events (${filteredEvents.length})`,
+                    icon: <LayoutGrid className="w-4 h-4" />,
+                  },
+                  {
+                    key: "trending",
+                    label: "Trending",
+                    icon: <Flame className="w-4 h-4" />,
+                  },
+                ] as { key: ActiveTab; label: string; icon: React.ReactNode }[]
+              ).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 px-5 py-4 font-semibold transition ${
+                    activeTab === tab.key
+                      ? "text-blue-400 border-b-2 border-blue-400"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search + sort */}
+            <div className="flex items-center gap-3 pb-3 md:pb-0">
+              <div className="flex items-center bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 gap-2">
+                <Search className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search events..."
+                  className="bg-transparent text-white text-sm focus:outline-none w-44"
+                />
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as "date" | "name")}
+                className="bg-gray-900 text-white border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+              >
+                <option value="date">Sort by Date</option>
+                <option value="name">Sort by Name</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Category filter pills */}
+          <div className="flex flex-wrap gap-2 px-6 py-4 border-b border-gray-700">
+            {CATEGORIES.map((cat) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-4 font-semibold transition capitalize ${
-                  activeTab === tab
-                    ? "text-blue-400 border-b-2 border-blue-400"
-                    : "text-gray-400 hover:text-white"
+                key={cat}
+                onClick={() => setCategoryFilter(cat === "All" ? "" : cat)}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
+                  (cat === "All" && !categoryFilter) || categoryFilter === cat
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-900 text-gray-400 hover:bg-gray-700"
                 }`}
               >
-                {tab === "users"
-                  ? `Users (${stats.totalUsers})`
-                  : tab === "events"
-                    ? `Events (${stats.totalEvents})`
-                    : "Overview"}
+                {cat}
               </button>
             ))}
           </div>
 
+          {/* ── Table body ── */}
           <div className="p-6">
-            {/* Overview Tab */}
-            {activeTab === "overview" && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-4">
-                    Category Distribution
-                  </h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {/* Fix: count is number (not unknown) because categories is Record<string, number> */}
-                    {Object.entries(stats.categories).map(
-                      ([category, count]) => (
-                        <div
-                          key={category}
-                          className="bg-gray-900 border border-gray-700 rounded-lg p-4"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-300">{category}</span>
-                            <span className="text-2xl font-bold text-white">
-                              {count}
-                            </span>
-                          </div>
-                          <div className="mt-2 bg-gray-700 rounded-full h-2">
-                            <div
-                              className="bg-blue-500 rounded-full h-2"
-                              style={{
-                                width: `${
-                                  stats.totalEvents > 0
-                                    ? (count / stats.totalEvents) * 100
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-6">
-                  <div className="flex items-start space-x-3">
-                    <AlertCircle className="w-6 h-6 text-blue-400 flex-shrink-0 mt-1" />
-                    <div>
-                      <h4 className="text-white font-semibold mb-2">
-                        Admin Controls
-                      </h4>
-                      <p className="text-gray-300 text-sm">
-                        You have full access to manage all users and events. Use
-                        the tabs above to view and manage platform content.
-                        Exercise caution when deleting items as this action
-                        cannot be undone.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            {/* Loading */}
+            {loading && (
+              <div className="text-center py-16">
+                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400">Loading events...</p>
               </div>
             )}
 
-            {/* Users Tab */}
-            {activeTab === "users" && (
-              <div>
-                <h3 className="text-xl font-bold text-white mb-4">All Users</h3>
-                {users.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No users registered yet</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-900 border-b border-gray-700">
-                        <tr>
-                          {[
-                            "Name",
-                            "Email",
-                            "College",
-                            "Phone",
-                            "Joined",
-                            "Actions",
-                          ].map((h) => (
-                            <th
-                              key={h}
-                              className="px-4 py-3 text-left text-sm font-semibold text-gray-300"
-                            >
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-700">
-                        {users.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-900/50">
-                            <td className="px-4 py-3 text-white">
-                              {user.name}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300">
-                              {user.email}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300">
-                              {user.college}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300">
-                              {user.phone}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300">
-                              {formatDate(user.createdAt)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() =>
-                                  setDeleteConfirm({
-                                    type: "user",
-                                    id: user.id,
-                                  })
-                                }
-                                className="text-red-400 hover:text-red-300 transition"
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+            {/* Error */}
+            {error && !loading && (
+              <div className="text-center py-16">
+                <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-red-400 mb-4">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+                >
+                  Retry
+                </button>
               </div>
             )}
 
-            {/* Events Tab */}
-            {activeTab === "events" && (
-              <div>
-                <h3 className="text-xl font-bold text-white mb-4">
-                  All Events
+            {/* Empty */}
+            {!loading && !error && displayEvents.length === 0 && (
+              <div className="text-center py-16">
+                <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">
+                  No Events Found
                 </h3>
-                {events.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No events created yet</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-900 border-b border-gray-700">
-                        <tr>
-                          {[
-                            "Event Name",
-                            "Category",
-                            "Date",
-                            "Created By",
-                            "Actions",
-                          ].map((h) => (
-                            <th
-                              key={h}
-                              className="px-4 py-3 text-left text-sm font-semibold text-gray-300"
+                <p className="text-gray-400">
+                  {events.length === 0
+                    ? "No events created yet."
+                    : "Try adjusting your search or filters."}
+                </p>
+              </div>
+            )}
+
+            {/* Table */}
+            {!loading && !error && displayEvents.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-900 border-b border-gray-700">
+                    <tr>
+                      {[
+                        "Event Name",
+                        "Category",
+                        "Date",
+                        "Organiser",
+                        "Interested",
+                        "Status",
+                        "Action",
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-300"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {displayEvents.map((event) => (
+                      <tr
+                        key={event._id}
+                        className="hover:bg-gray-900/50 transition"
+                      >
+                        {/* Name + description */}
+                        <td className="px-4 py-4 max-w-xs">
+                          <div className="text-white font-semibold">
+                            {event.name}
+                          </div>
+                          <div className="text-gray-400 text-xs mt-1 line-clamp-1">
+                            {event.description}
+                          </div>
+                        </td>
+
+                        {/* Category badge */}
+                        <td className="px-4 py-4">
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-semibold ${badge(event.category)}`}
+                          >
+                            {event.category}
+                          </span>
+                        </td>
+
+                        {/* Date */}
+                        <td className="px-4 py-4 text-gray-300 text-sm whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-500" />
+                            {formatDate(event.date)}
+                          </div>
+                        </td>
+
+                        {/* Organiser */}
+                        <td className="px-4 py-4 text-gray-300 text-sm">
+                          {event.createdByName}
+                        </td>
+
+                        {/* Interested count */}
+                        <td className="px-4 py-4 text-gray-300 text-sm">
+                          <div className="flex items-center gap-1">
+                            <Users className="w-4 h-4 text-gray-500" />
+                            {event.interestedCount}
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-4">
+                          {event.isDisabled ? (
+                            <span className="flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/30 rounded text-xs font-semibold w-fit">
+                              <Ban className="w-3 h-3" /> Disabled
+                            </span>
+                          ) : new Date(event.date) >= new Date() ? (
+                            <span className="flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-400 border border-green-500/30 rounded text-xs font-semibold w-fit">
+                              <Activity className="w-3 h-3" /> Active
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 px-2 py-1 bg-gray-500/10 text-gray-400 border border-gray-500/30 rounded text-xs font-semibold w-fit">
+                              Ended
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Action */}
+                        <td className="px-4 py-4">
+                          {event.isDisabled ? (
+                            <span className="text-gray-600 text-sm">—</span>
+                          ) : (
+                            <a
+                              href={event.formlink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm font-semibold transition"
                             >
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-700">
-                        {events.map((event) => (
-                          <tr key={event.id} className="hover:bg-gray-900/50">
-                            <td className="px-4 py-3 text-white">
-                              {event.name}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-semibold">
-                                {event.category}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-300">
-                              {formatDate(event.date)}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300">
-                              {event.createdByName}
-                            </td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() =>
-                                  setDeleteConfirm({
-                                    type: "event",
-                                    id: event.id,
-                                  })
-                                }
-                                className="text-red-400 hover:text-red-300 transition"
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                              Register <ArrowRight className="w-3 h-3" />
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         </div>
+
+        {/* ── Category Distribution (mirrors Admin Overview) ── */}
+        {!loading && !error && Object.keys(categoryCount).length > 0 && (
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+            <h3 className="text-xl font-bold text-white mb-4">
+              Category Distribution
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {Object.entries(categoryCount).map(([category, count]) => (
+                <div
+                  key={category}
+                  className="bg-gray-900 border border-gray-700 rounded-lg p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-semibold ${badge(category)}`}
+                    >
+                      {category}
+                    </span>
+                    <span className="text-2xl font-bold text-white">
+                      {count}
+                    </span>
+                  </div>
+                  <div className="mt-3 bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 rounded-full h-2 transition-all"
+                      style={{
+                        width: `${events.length > 0 ? (count / events.length) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm.type && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-red-500/10 p-2 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-400" />
-              </div>
-              <h3 className="text-xl font-bold text-white">Confirm Deletion</h3>
-            </div>
-            <p className="text-gray-300 mb-6">
-              Are you sure you want to delete this {deleteConfirm.type}? This
-              action cannot be undone.
-              {deleteConfirm.type === "user" &&
-                " All events created by this user will also be deleted."}
+      {/* ── CTA Banner (unchanged) ── */}
+      {!isAuthenticated && (
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 border-t border-gray-800 mt-8">
+          <div className="container mx-auto px-4 py-12 text-center">
+            <h3 className="text-2xl font-bold text-white mb-4">
+              Want to create your own event?
+            </h3>
+            <p className="text-blue-100 mb-6">
+              Join UniEvent today and start organising amazing campus
+              experiences
             </p>
-            <div className="flex space-x-4">
-              {/* Fix: handleConfirmDelete centralises the null guard — no inline ternary needed */}
-              <button
-                onClick={handleConfirmDelete}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition"
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => setDeleteConfirm({ type: null, id: null })}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}

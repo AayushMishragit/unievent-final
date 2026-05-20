@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { EventAPI, toggleDisableEvent } from "@/app/Service/authService";
+import { EventAPI } from "@/app/Service/authService";
 
 import {
   Search,
@@ -11,23 +11,28 @@ import {
   Calendar,
   User,
   FileText,
-  AlertCircle,
   Ban,
 } from "lucide-react";
-//import axios from "axios";
 
-// Replace with your real auth context import path
-// import { useAuth } from '../AuthContext';
+// ─── Auth Helper ─────────────────────────────────────────────
+
 function useAuth() {
   const raw =
     typeof window !== "undefined" ? localStorage.getItem("user") : null;
+
   const parsed = raw ? JSON.parse(raw) : null;
+
   return {
-    user: parsed ? { id: parsed._id ?? parsed.id, name: parsed.name } : null,
+    user: parsed
+      ? {
+          id: parsed._id ?? parsed.id,
+          name: parsed.name,
+        }
+      : null,
   };
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────
 
 interface Event {
   _id: string;
@@ -41,9 +46,8 @@ interface Event {
   isDisabled: boolean;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Constants ──────────────────────────────────────────────
 
-// Fix: lowercase `string[]` — `String[]` is the object-wrapper type and wrong here
 const CATEGORIES: string[] = [
   "All",
   "Technical",
@@ -82,78 +86,98 @@ function formatDate(dateString: string): string {
   });
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component ──────────────────────────────────────────────
 
 export default function Events() {
   const { user } = useAuth();
 
   const [events, setEvents] = useState<Event[]>([]);
-  const [sortBy, setSortBy] = useState<"date" | "name">("date");
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  // Fix: type deleteConfirm as string | null instead of bare null
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [disableConfirm, setDisableConfirm] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"date" | "name">("date");
 
-  // Fix: localStorage wrapped in useEffect — safe for Next.js SSR
+  // loading state for disable button
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  // ─── Fetch Events ────────────────────────────────────────
+
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const { data } = await EventAPI.get("/", { params: { limit: 100 } });
-        setEvents(data.events); // same shape as ExplorePage
-      } catch (err: any) {
+        const { data } = await EventAPI.get("/", {
+          params: { limit: 100 },
+        });
+
+        setEvents(data.events || []);
+      } catch (err) {
+        console.log(err);
         toast.error("Failed to load events");
       }
     };
+
     fetchEvents();
   }, []);
+
+  // ─── Filter + Search ─────────────────────────────────────
 
   useEffect(() => {
     let filtered = [...events];
 
+    // search
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
+
       filtered = filtered.filter(
         (e) =>
           e.name.toLowerCase().includes(lower) ||
-          e.description.toLowerCase().includes(lower),
+          e.description.toLowerCase().includes(lower) ||
+          e.createdByName.toLowerCase().includes(lower),
       );
     }
 
+    // category filter
     if (categoryFilter && categoryFilter !== "All") {
       filtered = filtered.filter((e) => e.category === categoryFilter);
     }
 
+    // sorting
     filtered.sort((a, b) => {
-      if (sortBy === "date")
+      if (sortBy === "date") {
         return new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      return 0;
+      }
+
+      return a.name.localeCompare(b.name);
     });
 
     setFilteredEvents(filtered);
-  }, [searchTerm, categoryFilter, sortBy, events]);
+  }, [events, searchTerm, categoryFilter, sortBy]);
 
-  const toggleDisable = async (eventId: string) => {
+  // ─── Toggle Disable ──────────────────────────────────────
+
+  // ─── Delete Event ────────────────────────────────────────
+
+  const deleteEvent = async (eventId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this event?",
+    );
+
+    if (!confirmed) return;
+
     try {
-      const { data } = await EventAPI.patch(`/${eventId}/toggle-disable`);
-      console.log(data);
-      // update that event in state with the new isDisabled value from DB
-      setEvents((prev) =>
-        prev.map((e) =>
-          e._id === eventId ? { ...e, isDisabled: data.isDisabled } : e,
-        ),
-      );
-    } catch (err: any) {
-      toast.error("status:", err.response?.status);
-      toast.error("data:", err.response?.data);
-      toast.error("message:", err.message);
-      toast.error(`toggle error${err.response?.status}, ${err.response?.data}`);
+      await EventAPI.delete(`/${eventId}`);
+
+      setEvents((prev) => prev.filter((e) => e._id !== eventId));
+
+      toast.success("Event deleted");
+    } catch (err) {
+      console.log(err);
+      toast.error("Failed to delete event");
     }
   };
 
-  // Fix: typed eventId as string
+  // ─── UI ──────────────────────────────────────────────────
 
   return (
     <div className="bg-gray-900 min-h-screen">
@@ -163,6 +187,7 @@ export default function Events() {
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
             My Events
           </h1>
+
           <p className="text-gray-400">Manage all your created events</p>
         </div>
       </div>
@@ -179,6 +204,7 @@ export default function Events() {
                   <span>Search Events</span>
                 </div>
               </label>
+
               <input
                 type="text"
                 value={searchTerm}
@@ -186,7 +212,7 @@ export default function Events() {
                   setSearchTerm(e.target.value)
                 }
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Search by name, description, or creator..."
+                placeholder="Search events..."
               />
             </div>
 
@@ -198,7 +224,7 @@ export default function Events() {
                   <span>Filter by Category</span>
                 </div>
               </label>
-              {/* Fix: HTMLSelectElement not HTMLInputElement */}
+
               <select
                 value={categoryFilter}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -215,23 +241,24 @@ export default function Events() {
             </div>
           </div>
 
-          {/* Results Count */}
           <div className="mt-4 text-sm text-gray-400">
             Showing {filteredEvents.length} of {events.length} events
           </div>
         </div>
 
-        {/* Events Display */}
+        {/* Empty State */}
         {filteredEvents.length === 0 ? (
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-12 text-center">
             <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+
             <h3 className="text-xl font-semibold text-white mb-2">
               No Events Found
             </h3>
+
             <p className="text-gray-400">
               {events.length === 0
-                ? "You haven't created any events yet. Go to your dashboard to create one!"
-                : "Try adjusting your search or filter criteria."}
+                ? "You haven't created any events yet."
+                : "Try changing your filters."}
             </p>
           </div>
         ) : (
@@ -239,71 +266,64 @@ export default function Events() {
             {filteredEvents.map((event) => (
               <div
                 key={event._id}
-                className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-blue-500/50 transition-all group"
+                className={`bg-gray-800 border rounded-xl overflow-hidden transition-all group
+                ${
+                  event.isDisabled
+                    ? "border-yellow-500/50 opacity-70"
+                    : "border-gray-700 hover:border-blue-500/50"
+                }`}
               >
                 <div className="p-6">
+                  {/* Category */}
                   <div className="flex items-start justify-between mb-4">
                     <span
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getCategoryColor(event.category)}`}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getCategoryColor(
+                        event.category,
+                      )}`}
                     >
                       {event.category}
                     </span>
                   </div>
 
+                  {/* Name */}
                   <h3 className="text-xl font-bold text-white mb-3 group-hover:text-blue-400 transition">
                     {event.name}
                   </h3>
 
+                  {/* Date + Creator */}
                   <div className="space-y-3 mb-4">
                     <div className="flex items-center space-x-2 text-sm text-gray-400">
                       <Calendar className="w-4 h-4" />
+
                       <span>{formatDate(event.date)}</span>
                     </div>
+
                     <div className="flex items-center space-x-2 text-sm text-gray-400">
                       <User className="w-4 h-4" />
+
                       <span>{event.createdByName}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-start space-x-2 text-sm text-gray-400 mb-4">
+                  {/* Description */}
+                  <div className="flex items-start space-x-2 text-sm text-gray-400 mb-6">
                     <FileText className="w-4 h-4 mt-0.5 flex-shrink-0" />
+
                     <p className="line-clamp-3">{event.description}</p>
                   </div>
 
-                  {/* Fix: user?.id null-checked */}
-                  <button
-                    className="py-4"
-                    onClick={() => toggleDisable(event._id)}
-                  >
-                    <Ban
-                      className={
-                        event.isDisabled === true
-                          ? "text-yellow-400 cursor-pointer"
-                          : "text-gray-400 coursor-pointer"
-                      }
-                      size={27}
-                    />
-                  </button>
-                  <button
-                    className="py-4 px-7"
-                    onClick={async () => {
-                      const confirmed = window.confirm(
-                        "Are you sure you want to delete?",
-                      );
-                      if (!confirmed) return;
+                  {/* Actions */}
+                  <div className="flex items-center gap-6">
+                    {/* Toggle Disable */}
 
-                      try {
-                        await EventAPI.delete(`/${event._id}`);
-                        setEvents((prev) =>
-                          prev.filter((e) => e._id !== event._id),
-                        );
-                      } catch {
-                        toast.error("Failed to delete event");
-                      }
-                    }}
-                  >
-                    <Trash2 className="text-red-500 cursor-pointer" size={27} />
-                  </button>
+                    {/* Delete */}
+                    <button onClick={() => deleteEvent(event._id)}>
+                      <Trash2
+                        className="text-red-500 cursor-pointer"
+                        size={27}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
