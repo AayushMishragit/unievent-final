@@ -173,7 +173,7 @@ export default function Dashboard() {
               <input
                 type="text"
                 name="name"
-                value={formData.formlink}
+                value={formData.name}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   handleChange(e);
                   validateurl(e.target.value); // ← call here

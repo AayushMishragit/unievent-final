@@ -211,17 +211,6 @@ export default function ExplorePage() {
             <div className="text-green-300 text-sm">Active Events</div>
           </div>
 
-          <div className="bg-gradient-to-br from-red-900/40 to-red-800/40 border border-red-700/50 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Ban className="w-8 h-8 text-red-400" />
-              <Activity className="w-5 h-5 text-red-400" />
-            </div>
-            <div className="text-3xl font-bold text-white mb-1">
-              {disabledCount}
-            </div>
-            <div className="text-red-300 text-sm">Disabled Events</div>
-          </div>
-
           <div className="bg-gradient-to-br from-orange-900/40 to-orange-800/40 border border-orange-700/50 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <Tag className="w-8 h-8 text-orange-400" />
