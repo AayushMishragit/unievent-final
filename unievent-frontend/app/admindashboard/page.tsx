@@ -223,7 +223,7 @@ export default function ExplorePage() {
           </div>
         </div>
 
-        {/* ── Main Panel ── */}
+        {/* ── Main Panel where all details get shown── */}
         <div className="bg-gray-800 border border-gray-700 rounded-xl mb-6">
           {/* Tabs + search + sort bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-700 px-6 gap-3">
