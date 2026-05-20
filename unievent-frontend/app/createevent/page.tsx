@@ -2,7 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { PlusCircle, Calendar, Tag, FileText, CheckCircle } from "lucide-react";
+import {
+  PlusCircle,
+  Calendar,
+  Tag,
+  FileText,
+  CheckCircle,
+  FormIcon,
+} from "lucide-react";
 import { createEvent } from "@/app/Service/authService";
 // Replace with your real auth context import path
 // import { useAuth } from '../AuthContext';
@@ -113,13 +120,23 @@ export default function Dashboard() {
     }
   };
 
+  const correct_url = "https://docs.google.com/forms";
+
+  const validateurl = (value: string) => {
+    if (value && !value.startsWith(correct_url)) {
+      setErrors((prev) => ({ ...prev, err: "wrong url " }));
+    } else {
+      setErrors((prev) => ({ ...prev, err: "" }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 py-12 px-4">
       <div className="container mx-auto max-w-3xl">
         {/* Welcome Section */}
         <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 border border-blue-700/50 rounded-xl p-8 mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
-            {/* Fix: user?.name — safe optional chaining */}
+            {/* Fix: user?.name — safe optional chaining  */}
             Welcome, {user?.name}! 👋
           </h1>
           <p className="text-gray-300">
@@ -152,18 +169,25 @@ export default function Dashboard() {
                   <span>Event Name *</span>
                 </div>
               </label>
+
               <input
                 type="text"
                 name="name"
-                value={formData.name}
-                onChange={handleChange}
+                value={formData.formlink}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  handleChange(e);
+                  validateurl(e.target.value); // ← call here
+                }}
+                onPaste={(e: React.ClipboardEvent<HTMLInputElement>) => {
+                  validateurl(e.clipboardData.getData("text")); // ← and here
+                }}
                 className={`w-full px-4 py-3 bg-gray-900 border rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.name ? "border-red-500" : "border-gray-700"
+                  errors.formlink ? "border-red-500" : "border-gray-700"
                 }`}
-                placeholder="e.g., Annual Tech Fest 2026"
+                placeholder="Annual tech fest"
               />
-              {errors.name && (
-                <p className="text-red-400 text-sm mt-1">{errors.name}</p>
+              {errors.formlink && (
+                <p className="text-red-400 text-sm mt-1">{errors.formlink}</p>
               )}
             </div>
 
@@ -179,9 +203,15 @@ export default function Dashboard() {
                 type="date"
                 name="date"
                 value={formData.date}
-                onChange={handleChange}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  handleChange(e);
+                  validateurl(e.target.value);
+                }}
+                onPaste={(e: React.ClipboardEvent<HTMLInputElement>) => {
+                  validateurl(e.clipboardData.getData("text"));
+                }}
                 className={`w-full px-4 py-3 bg-gray-900 border rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.date ? "border-red-500" : "border-gray-700"
+                  errors.formlink ? "border-red-500" : "border-gray-700"
                 }`}
               />
               {errors.date && (
@@ -225,6 +255,7 @@ export default function Dashboard() {
                   <span>Description *</span>
                 </div>
               </label>
+
               {/* Fix: rows={4} as number, not rows="4" string */}
               <textarea
                 name="description"
@@ -236,6 +267,13 @@ export default function Dashboard() {
                 }`}
                 placeholder="Describe your event..."
               />
+              <a
+                href="https://docs.google.com/forms"
+                className="flex items-center text-white font-bold hover:text-blue-600 p-2"
+              >
+                <FormIcon className="text-white font-bold" />
+                Create form
+              </a>
               {errors.description && (
                 <p className="text-red-400 text-sm mt-1">
                   {errors.description}
@@ -258,7 +296,7 @@ export default function Dashboard() {
                 className={`w-full px-4 py-3 bg-gray-900 border rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.name ? "border-red-500" : "border-gray-700"
                 }`}
-                placeholder="e.g., Annual Tech Fest 2026"
+                placeholder="https://docs.google.com/forms"
               />
               {errors.name && (
                 <p className="text-red-400 text-sm mt-1">{errors.formlink}</p>
