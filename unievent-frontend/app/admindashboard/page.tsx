@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { googleFormUtils } from "../utils/googleformUtils";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import {
@@ -350,7 +351,7 @@ export default function ExplorePage() {
                         "Organiser",
                         "Interested",
                         "Status",
-                        "Action",
+                        "Responses",
                       ].map((h) => (
                         <th
                           key={h}
@@ -430,12 +431,12 @@ export default function ExplorePage() {
                             <span className="text-gray-600 text-sm">—</span>
                           ) : (
                             <a
-                              href={event.formlink}
+                              href={googleFormUtils(event.formlink) ?? "#"}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm font-semibold transition"
+                              className="flex items-center gap-1 text-green-400 hover:text-green-300 text-sm font-semibold transition"
                             >
-                              Register <ArrowRight className="w-3 h-3" />
+                              Responses <ArrowRight className="w-3 h-3" />
                             </a>
                           )}
                         </td>

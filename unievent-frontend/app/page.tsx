@@ -7,6 +7,7 @@ import {
   Plus,
   Target,
   Shield,
+  ShieldQuestionMark,
   Sparkles,
   ArrowRight,
 } from "lucide-react";
@@ -165,7 +166,7 @@ export default function LandingPage() {
                 >
                   <div className="flex justify-center mb-4">
                     <div className="bg-purple-500/10 p-4 rounded-xl group-hover:bg-purple-500/20 transition">
-                      <Plus className="w-8 h-8 text-purple-400" />
+                      <ShieldQuestionMark className="w-8 h-8 text-purple-400" />
                     </div>
                   </div>
 
@@ -174,7 +175,7 @@ export default function LandingPage() {
                       ? "Let's Get Started"
                       : isAdmin
                         ? "Manage Events"
-                        : "My Registrations"}
+                        : "About Unievent"}
                   </h3>
 
                   <p className="text-gray-400 mb-6">
@@ -182,7 +183,7 @@ export default function LandingPage() {
                       ? "Organize your next event, workshop or club."
                       : isAdmin
                         ? "Manage and monitor all created events from admin dashboard"
-                        : "View all events you have registered for"}
+                        : "See why you should join the unievent"}
                   </p>
 
                   <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center space-x-2 transition">
